@@ -1,0 +1,43 @@
+{
+    "name": "tochka-developers/type-parser",
+    "description": "Extended Type Parser from PHP code",
+    "type": "package",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Babushkin Pavel",
+            "email": "darkdarin@tochka.com"
+        }
+    ],
+    "require": {
+        "php": "8.1.*|8.2.*",
+        "doctrine/annotations": "^1.11",
+        "psr/container": "^2.0",
+        "jetbrains/phpstorm-attributes": "^1.0",
+        "phpdocumentor/reflection-docblock": "^3.0|^4.0|^5.0",
+        "phpdocumentor/type-resolver": "^1.5",
+        "spiral/attributes": "^2.8"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.4",
+        "mockery/mockery": "^1.5",
+        "phpunit/phpunit": "^9.6",
+        "roave/security-advisories": "dev-latest",
+        "vimeo/psalm": "^5.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tochka\\TypeParser\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tochka\\TypeParser\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "lint": "pint --test",
+        "lint-fix": "pint",
+        "analyze": "psalm --no-cache"
+    }
+}
