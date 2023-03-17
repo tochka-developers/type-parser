@@ -30,6 +30,7 @@ class ExtendedReflectionFactory implements ExtendedReflectionFactoryInterface
 
     /**
      * @template T of ExtendedReflectionInterface
+     * @param string $key
      * @param callable(): T $make
      * @return T
      */

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tochka\TypeParser\Traits;
 
-use Tochka\TypeParser\Enums\ClassModifierEnum;
 use Tochka\TypeParser\Enums\ModifierEnumInterface;
 
 trait ModifiersTrait
