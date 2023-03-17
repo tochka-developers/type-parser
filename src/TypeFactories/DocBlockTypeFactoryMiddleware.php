@@ -11,7 +11,6 @@ use phpDocumentor\Reflection\PseudoTypes\CallableString;
 use phpDocumentor\Reflection\PseudoTypes\False_;
 use phpDocumentor\Reflection\PseudoTypes\HtmlEscapedString;
 use phpDocumentor\Reflection\PseudoTypes\IntegerRange;
-use phpDocumentor\Reflection\PseudoTypes\List_;
 use phpDocumentor\Reflection\PseudoTypes\LiteralString;
 use phpDocumentor\Reflection\PseudoTypes\LowercaseString;
 use phpDocumentor\Reflection\PseudoTypes\NegativeInteger;
@@ -41,8 +40,10 @@ use phpDocumentor\Reflection\Types\Scalar;
 use phpDocumentor\Reflection\Types\Self_;
 use phpDocumentor\Reflection\Types\Static_;
 use phpDocumentor\Reflection\Types\String_;
+use phpDocumentor\Reflection\Types\This;
 use phpDocumentor\Reflection\Types\Void_;
 use Tochka\TypeParser\Contracts\ExtendedReflectionInterface;
+use Tochka\TypeParser\Exceptions\LogicException;
 use Tochka\TypeParser\Reflectors\ExtendedMethodReflection;
 use Tochka\TypeParser\Reflectors\ExtendedParameterReflection;
 use Tochka\TypeParser\Reflectors\ExtendedPropertyReflection;
@@ -98,6 +99,7 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
             // для каждого типа из выведенного надо найти в списке типов phpdoc соответствующий и попробовать с помощью него уточнить тип
             $typeFromDocBlock = $this->clarifyType(new MixedType(), $type, $reflector);
 
+            /** @var list<TypeInterface> $resultTypes */
             $resultTypes = [];
             foreach ($defaultType->types as $subType) {
                 $clarifiedType = $subType;
@@ -111,10 +113,13 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
                 } elseif ($this->typeComparator->compare($subType, $typeFromDocBlock)) {
                     $clarifiedType = $typeFromDocBlock;
                 }
+
                 $resultTypes[] = $clarifiedType;
             }
 
-            return new UnionType($resultTypes);
+            if (!empty($resultTypes)) {
+                return new UnionType($resultTypes);
+            }
         }
 
         return $next($this->clarifyType($defaultType, $type, $reflector), $reflector);
@@ -154,6 +159,13 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
         return null;
     }
 
+    /**
+     * @template TType
+     * @param TypeInterface<TType> $defaultType
+     * @param Type $type
+     * @param ExtendedReflectionInterface $reflector
+     * @return TypeInterface<TType>
+     */
     private function clarifyType(
         TypeInterface $defaultType,
         Type $type,
@@ -177,40 +189,7 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
             return new IntersectionType($this->getMultipleTypes($defaultType, $type, $reflector));
         }
 
-        $clarifyType = match ($type::class) {
-            Array_::class,
-            Iterable_::class,
-            List_::class => $this->clarifyArrayType($type, $reflector),
-            Boolean::class => new BoolType(),
-            Callable_::class => new CallableType(),
-            False_::class => new BoolType(BoolRestrictionEnum::FALSE),
-            Float_::class => new FloatType(),
-            Integer::class,
-            IntegerRange::class,
-            NegativeInteger::class,
-            PositiveInteger::class => $this->clarifyIntegerType($type),
-            Never_::class => new NeverType(),
-            Null_::class => new NullType(),
-            Object_::class,
-            Self_::class,
-            Static_::class => $this->clarifyObjectType($type, $reflector),
-            Resource_::class => new ResourceType(),
-            String_::class,
-            ClassString::class,
-            LiteralString::class,
-            NonEmptyLowercaseString::class,
-            TraitString::class,
-            LowercaseString::class,
-            CallableString::class,
-            HtmlEscapedString::class,
-            NumericString::class,
-            NonEmptyString::class,
-            InterfaceString::class => $this->clarifyStringType($type),
-            True_::class => new BoolType(BoolRestrictionEnum::TRUE),
-            Void_::class => new VoidType(),
-            Scalar::class => new ScalarType(),
-            default => new MixedType(),
-        };
+        $clarifyType = $this->clarifySimpleType($type, $reflector);
 
         if ($defaultType instanceof MixedType || $this->typeComparator->compare($defaultType, $clarifyType)) {
             return $clarifyType;
@@ -219,8 +198,61 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
         return $defaultType;
     }
 
+    private function clarifySimpleType(Type $type, ExtendedReflectionInterface $reflector): TypeInterface
+    {
+        if ($type instanceof Array_ || $type instanceof Iterable_) {
+            return $this->clarifyArrayType($type, $reflector);
+        }
+
+        if ($type instanceof Boolean) {
+            return $this->clarifyBoolType($type);
+        }
+
+        if ($type instanceof Callable_) {
+            return new CallableType();
+        }
+
+        if ($type instanceof Float_) {
+            return new FloatType();
+        }
+
+        if ($type instanceof Integer) {
+            return $this->clarifyIntegerType($type);
+        }
+
+        if ($type instanceof Never_) {
+            return new NeverType();
+        }
+
+        if ($type instanceof Null_) {
+            return new NullType();
+        }
+
+        if ($type instanceof Object_ || $type instanceof Self_ || $type instanceof Static_ || $type instanceof This) {
+            return $this->clarifyObjectType($type, $reflector);
+        }
+
+        if ($type instanceof Resource_) {
+            return new ResourceType();
+        }
+
+        if ($type instanceof String_ || $type instanceof InterfaceString) {
+            return $this->clarifyStringType($type);
+        }
+
+        if ($type instanceof Void_) {
+            return new VoidType();
+        }
+
+        if ($type instanceof Scalar) {
+            return new ScalarType();
+        }
+
+        return new MixedType();
+    }
+
     /**
-     * @return array<TypeInterface>
+     * @return non-empty-list<TypeInterface>
      */
     private function getMultipleTypes(
         TypeInterface $defaultType,
@@ -232,15 +264,34 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
             $types[] = $this->clarifyType($defaultType, $subType, $reflector);
         }
 
+        if (empty($types)) {
+            throw new LogicException('Compound|Intersection docBlock type must contain at least two types');
+        }
+
         return $types;
     }
 
-    private function clarifyArrayType(AbstractList $type, ExtendedReflectionInterface $reflector): TypeInterface
-    {
+    private function clarifyArrayType(
+        AbstractList $type,
+        ExtendedReflectionInterface $reflector
+    ): TypeInterface {
         return new ArrayType(
             $this->clarifyType(new ArrayKeyType(), $type->getKeyType(), $reflector),
             $this->clarifyType(new MixedType(), $type->getValueType(), $reflector),
         );
+    }
+
+    private function clarifyBoolType(Boolean $type): TypeInterface
+    {
+        if ($type instanceof False_) {
+            return new BoolType(BoolRestrictionEnum::FALSE);
+        }
+
+        if ($type instanceof True_) {
+            return new BoolType(BoolRestrictionEnum::TRUE);
+        }
+
+        return new BoolType();
     }
 
     private function clarifyIntegerType(Integer $type): TypeInterface
@@ -282,10 +333,10 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
     }
 
     private function clarifyObjectType(
-        Object_|Self_|Static_ $type,
+        Object_|Self_|Static_|This $type,
         ExtendedReflectionInterface $reflector
     ): TypeInterface {
-        if ($type instanceof Self_ || $type instanceof Static_) {
+        if ($type instanceof Self_ || $type instanceof Static_ || $type instanceof This) {
             if ($reflector instanceof ExtendedParameterReflection) {
                 return new NamedObjectType($reflector->getDeclaringMethod()->getDeclaringClass()->getName());
             }
@@ -296,7 +347,9 @@ class DocBlockTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
         }
 
         if ($type->getFqsen() !== null) {
-            return new NamedObjectType($this->fullyQualifiedClassName((string)$type->getFqsen()));
+            /** @var class-string $className */
+            $className = (string)$type->getFqsen();
+            return new NamedObjectType($this->fullyQualifiedClassName($className));
         }
 
         return new ObjectType();

@@ -59,11 +59,12 @@ final class Collection implements \IteratorAggregate, \Countable
 
     /**
      * @psalm-mutation-free
-     * @param pure-callable(TValue): bool $filter
+     * @param callable(TValue): bool $filter
      * @return self<TValue>
      */
     public function filter(callable $filter): self
     {
+        /** @psalm-suppress ImpureFunctionCall */
         $values = array_values(
             array_filter($this->items, $filter)
         );

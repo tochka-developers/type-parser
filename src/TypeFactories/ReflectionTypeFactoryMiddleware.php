@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tochka\TypeParser\TypeFactories;
 
 use Tochka\TypeParser\Contracts\ExtendedReflectionInterface;
+use Tochka\TypeParser\Exceptions\LogicException;
 use Tochka\TypeParser\TypeSystem\DTO\BoolRestrictionEnum;
 use Tochka\TypeParser\TypeSystem\TypeInterface;
 use Tochka\TypeParser\TypeSystem\Types\ArrayType;
@@ -75,21 +76,36 @@ class ReflectionTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
     }
 
     /**
-     * @return array<TypeInterface>
+     * @return non-empty-list<TypeInterface>
      */
     private function getMultipleTypes(\ReflectionUnionType|\ReflectionIntersectionType $reflectionUnionType): array
     {
-        return array_filter(
-            array_map(
-                fn (\ReflectionType $type): TypeInterface => $this->getType($type),
-                $reflectionUnionType->getTypes()
-            )
-        );
+        $types = [];
+        foreach ($reflectionUnionType->getTypes() as $reflectionType) {
+            $type = $this->getType($reflectionType);
+
+            if ($type === null) {
+                continue;
+            }
+
+            $types[] = $type;
+        }
+
+        if (empty($types)) {
+            throw new LogicException('UnionType|IntersectionType must contain at least two types');
+        }
+
+        return $types;
     }
 
     private function getNamedType(\ReflectionNamedType $reflectionType): TypeInterface
     {
-        return match ($reflectionType->getName()) {
+        /**
+         * @var ("array"|"iterable"|"bool"|"callable"|"Closure"|"\Closure"|"false"|"float"|"int"|"mixed"|"never"|"null"|"object"|"resource"|"string"|"true"|"void"|class-string) $name
+         */
+        $name = $reflectionType->getName();
+
+        return match ($name) {
             'array', 'iterable' => new ArrayType(),
             'bool' => new BoolType(),
             'callable', 'Closure', '\Closure' => new CallableType(),
@@ -104,7 +120,7 @@ class ReflectionTypeFactoryMiddleware implements TypeFactoryMiddlewareInterface
             'string' => new StringType(),
             'true' => new BoolType(BoolRestrictionEnum::TRUE),
             'void' => new VoidType(),
-            default => new NamedObjectType($reflectionType->getName())
+            default => new NamedObjectType($name)
         };
     }
 }

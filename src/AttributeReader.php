@@ -38,12 +38,12 @@ class AttributeReader implements AttributeReaderInterface
     }
 
     /**
-     * @template TItem
-     * @param iterable<TItem> $items
-     * @return Collection<TItem>
+     * @param iterable<object> $items
+     * @return Collection<object>
      */
     private function makeCollectionFromIterable(iterable $items): Collection
     {
-        return new Collection($items instanceof \Traversable ? iterator_to_array($items) : $items);
+        $values = $items instanceof \Traversable ? iterator_to_array($items) : $items;
+        return new Collection(array_values($values));
     }
 }

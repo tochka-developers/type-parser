@@ -8,6 +8,7 @@ use Tochka\TypeParser\TypeSystem\TypeInterface;
 
 /**
  * @psalm-api
+ *
  * @psalm-immutable
  * @template-covariant TKey of array-key
  * @template-covariant TValue
@@ -27,6 +28,6 @@ final class ArrayType implements TypeInterface
 
     public function __toString(): string
     {
-        return sprintf('array<%s,%s>', $this->keyType, $this->valueType);
+        return sprintf('array<%s,%s>', (string)$this->keyType, (string)$this->valueType);
     }
 }

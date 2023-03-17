@@ -9,6 +9,7 @@ use Tochka\TypeParser\TypeSystem\TypeInterface;
 
 /**
  * @psalm-api
+ *
  * @psalm-immutable
  * @implements TypeAliasInterface<array-key>
  */

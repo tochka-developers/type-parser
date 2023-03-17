@@ -8,6 +8,7 @@ use Tochka\TypeParser\TypeSystem\TypeInterface;
 
 /**
  * @psalm-api
+ *
  * @psalm-immutable
  * @implements TypeInterface<object>
  */

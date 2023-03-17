@@ -8,6 +8,7 @@ use Tochka\TypeParser\TypeSystem\TypeInterface;
 
 /**
  * @psalm-api
+ *
  * @psalm-immutable
  * @template-covariant TObject of object
  * @implements TypeInterface<TObject>

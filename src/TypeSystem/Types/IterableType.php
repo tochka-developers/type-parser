@@ -8,6 +8,7 @@ use Tochka\TypeParser\TypeSystem\TypeInterface;
 
 /**
  * @psalm-api
+ *
  * @psalm-immutable
  * @template-covariant TKey
  * @template-covariant TValue
@@ -27,6 +28,6 @@ final class IterableType implements TypeInterface
 
     public function __toString(): string
     {
-        return sprintf('iterable<%s,%s>', $this->keyType, $this->valueType);
+        return sprintf('iterable<%s,%s>', (string) $this->keyType, (string) $this->valueType);
     }
 }

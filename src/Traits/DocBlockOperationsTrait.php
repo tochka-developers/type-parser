@@ -17,6 +17,7 @@ trait DocBlockOperationsTrait
             return null;
         }
 
+        /** @var string|false $docComment */
         $docComment = $reflector->getDocComment();
 
         if ($docComment === false) {
@@ -51,6 +52,6 @@ trait DocBlockOperationsTrait
             return new Collection();
         }
 
-        return new Collection($docBlock->getTags());
+        return new Collection(array_values($docBlock->getTags()));
     }
 }

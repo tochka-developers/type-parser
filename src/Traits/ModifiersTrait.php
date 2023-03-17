@@ -17,7 +17,7 @@ trait ModifiersTrait
         return (bool)($actualModifiers
             & array_reduce(
                 $expectModifiers,
-                fn (int $carry, ClassModifierEnum $modifier): int => $carry | $modifier->getReflectionConst(),
+                fn (int $carry, ModifierEnumInterface $modifier): int => $carry | $modifier->getReflectionConst(),
                 $expectModifier->getReflectionConst()
             )
         );
